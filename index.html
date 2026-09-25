@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1410">
+<title>윷놀이</title>
+<style>
+/* ── TV 미러링이 목적이다. 멀리서 보므로 글씨·말이 크고 대비가 세야 한다.
+      크기는 전부 vmin 기준 — 폰 세로든 TV 가로든 화면에 맞춰 같이 커진다. ── */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden}
+body{
+  background:#1a1410;color:#f5ece0;
+  font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  font-weight:800;user-select:none;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.hide{display:none!important}
+
+/* ── 설정 화면 ── */
+#setup{height:100%;overflow-y:auto;padding:4vmin;display:flex;flex-direction:column;gap:2.4vmin;align-items:center}
+.title{font-size:7vmin;font-weight:900;letter-spacing:-.02em;margin:1vmin 0 0}
+.sub{font-size:2.4vmin;color:#a8977f;margin:0 0 1vmin}
+.card{width:100%;max-width:min(96vw,150vmin);background:#251d17;border:.4vmin solid #3a2e24;border-radius:3vmin;padding:3vmin}
+.teams{display:flex;gap:2.4vmin;flex-wrap:wrap}
+.team{flex:1 1 40vmin;background:#1f1812;border-radius:2.4vmin;padding:2.4vmin;border-top:1vmin solid var(--c)}
+.lab{font-size:2.2vmin;color:#a8977f;margin:0 0 1vmin}
+input[type=text]{width:100%;background:#120e0a;border:.3vmin solid #3a2e24;border-radius:1.6vmin;
+  padding:1.6vmin 2vmin;font-size:3.4vmin;font-weight:900;color:#f5ece0}
+input[type=text]:focus{outline:none;border-color:var(--c)}
+.horses{display:flex;gap:1.2vmin;margin-top:1.6vmin}
+.horses button{flex:1;padding:1.6vmin 0;border-radius:1.4vmin;background:#120e0a;border:.3vmin solid #3a2e24;
+  font-size:3vmin;font-weight:900;color:#8a7a66}
+.horses button.on{background:var(--c);border-color:var(--c);color:#12100d}
+.swatch{display:flex;gap:1vmin;margin-top:1.6vmin}
+.swatch button{width:5vmin;height:5vmin;border-radius:50%;border:.5vmin solid transparent}
+.swatch button.on{border-color:#f5ece0}
+.opts{display:flex;gap:2vmin;flex-wrap:wrap;margin-top:.5vmin}
+.opt{flex:1 1 34vmin;display:flex;align-items:center;justify-content:space-between;gap:1.6vmin;
+  background:#1f1812;border-radius:2vmin;padding:2vmin 2.4vmin}
+.opt b{font-size:2.6vmin}
+.opt span{display:block;font-size:2vmin;color:#a8977f;font-weight:700;margin-top:.4vmin}
+.toggle{flex-shrink:0;width:12vmin;height:6vmin;border-radius:3vmin;background:#3a2e24;position:relative;transition:background .15s}
+.toggle i{position:absolute;top:.7vmin;left:.7vmin;width:4.6vmin;height:4.6vmin;border-radius:50%;
+  background:#f5ece0;transition:transform .15s}
+.toggle.on{background:#4ea65a}
+.toggle.on i{transform:translateX(6vmin)}
+.go{width:100%;max-width:min(96vw,150vmin);padding:3vmin;border-radius:2.4vmin;background:#e0a43c;color:#1a1410;
+  font-size:4.4vmin;font-weight:900;box-shadow:0 1vmin 0 #a8752099}
+.go:active{transform:translateY(.5vmin);box-shadow:0 .5vmin 0 #a8752099}
+
+/* ── 게임 화면 : 가로면 좌우, 세로면 위아래 ── */
+#game{height:100%;display:flex;gap:2vmin;padding:2vmin}
+@media (orientation:portrait){#game{flex-direction:column}}
+.left{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0}
+.right{flex:0 0 44vmin;display:flex;flex-direction:column;gap:1.6vmin;min-height:0}
+@media (orientation:portrait){.right{flex:0 0 auto}}
+
+/* 점수판 — 지금 누구 차례인지가 제일 커야 한다 */
+.scores{display:flex;gap:1.6vmin}
+.sc{flex:1;background:#251d17;border-radius:2vmin;padding:1.6vmin;border:.5vmin solid transparent;opacity:.45;transition:all .2s}
+.sc.turn{opacity:1;border-color:var(--c);background:#2e241b;transform:scale(1.03)}
+.sc .nm{font-size:3vmin;font-weight:900;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc .st{font-size:2vmin;color:#a8977f;margin-top:.5vmin;font-weight:700;white-space:nowrap}
+.sc .big{font-size:5vmin;font-weight:900;color:#f5ece0}
+
+/* 윷 결과 버튼 */
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2vmin}
+.pad button{padding:2.2vmin 0;border-radius:1.8vmin;background:#33281f;font-size:3.4vmin;font-weight:900;
+  border:.3vmin solid #4a3a2c}
+.pad button:active{background:#e0a43c;color:#1a1410}
+.pad button.back{background:#3d2420;border-color:#6b3a30;color:#e8a89c}
+.roll{padding:3vmin;border-radius:2vmin;background:#e0a43c;color:#1a1410;font-size:4vmin;font-weight:900;width:100%}
+.roll:disabled{opacity:.3}
+.queue{display:flex;gap:1vmin;flex-wrap:wrap;min-height:7vmin;align-content:flex-start}
+.chip{padding:1.4vmin 2.4vmin;border-radius:1.6vmin;background:#4a3a2c;font-size:3vmin;font-weight:900;
+  border:.4vmin solid transparent}
+.chip.on{background:#e0a43c;color:#1a1410;border-color:#fff}
+.chip.back{background:#6b3a30;color:#ffd9d1}
+.msg{font-size:2.4vmin;color:#e0c89c;font-weight:700;line-height:1.45;min-height:7vmin}
+.row{display:flex;gap:1.2vmin}
+.row button{flex:1;padding:1.8vmin 0;border-radius:1.6vmin;background:#33281f;font-size:2.6vmin;font-weight:900;
+  border:.3vmin solid #4a3a2c}
+.row button:disabled{opacity:.3}
+
+/* 윷판 */
+svg{width:100%;height:100%;max-width:min(92vmin,100%);max-height:100%;display:block}
+.line{stroke:#5c4630;stroke-width:.7;fill:none}
+.spot{fill:#2a2119;stroke:#6b5038;stroke-width:.7}
+.spot.big{fill:#332619;stroke:#8a6a44;stroke-width:1.1}
+.spot.pick{fill:#4a3a28;stroke:#fff;stroke-width:1.6;stroke-dasharray:2.4 1.8}
+.goal{fill:none;stroke:#fff;stroke-width:1.4;stroke-dasharray:2.4 1.8}
+.lbl{fill:#7a6144;font-size:3.4px;font-weight:900;text-anchor:middle;dominant-baseline:central}
+.horse{stroke:#12100d;stroke-width:.9}
+.horse.sel{stroke:#fff;stroke-width:1.8}
+.hnum{font-size:4.6px;font-weight:900;text-anchor:middle;dominant-baseline:central;fill:#12100d}
+.tap{fill:transparent;cursor:pointer}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.blink{animation:pulse .85s infinite}
+
+/* 승리 */
+#win{position:fixed;inset:0;background:#1a1410f2;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3vmin;z-index:9}
+#win .who{font-size:11vmin;font-weight:900;color:var(--c);text-align:center;padding:0 4vmin}
+</style>
+</head>
+<body>
+
+<!-- ══════════ 설정 ══════════ -->
+<div id="setup">
+  <h1 class="title">🎲 윷놀이</h1>
+  <p class="sub">팀 이름과 말 개수를 정하세요</p>
+
+  <div class="card">
+    <div class="teams" id="teamBox"></div>
+  </div>
+
+  <div class="card">
+    <div class="opts">
+      <div class="opt">
+        <div><b>윷 던지기</b><span id="rollModeTxt">직접 던지고 결과를 누릅니다</span></div>
+        <button class="toggle" id="tgRoll"><i></i></button>
+      </div>
+      <div class="opt">
+        <div><b>백도</b><span>뒤로 한 칸</span></div>
+        <button class="toggle on" id="tgBack"><i></i></button>
+      </div>
+    </div>
+  </div>
+
+  <button class="go" id="start">시작하기</button>
+  <p class="sub" style="margin-bottom:2vmin">폰을 TV에 미러링하면 온 가족이 함께 볼 수 있습니다</p>
+</div>
+
+<!-- ══════════ 게임 ══════════ -->
+<div id="game" class="hide">
+  <div class="left"><svg id="board" viewBox="-6 -12 112 124"></svg></div>
+  <div class="right">
+    <div class="scores" id="scores"></div>
+    <div class="queue" id="queue"></div>
+    <div class="msg" id="msg"></div>
+    <div id="rollWrap"><button class="roll" id="rollBtn">윷 던지기</button></div>
+    <div class="pad" id="pad"></div>
+    <div class="row">
+      <button id="undo">↩ 되돌리기</button>
+      <button id="pass">결과 버리기</button>
+    </div>
+    <div class="row"><button id="quit">처음으로</button></div>
+  </div>
+</div>
+
+<div id="win" class="hide">
+  <div class="who" id="winWho"></div>
+  <button class="go" style="max-width:60vmin" id="again">다시 하기</button>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   판·경로 규칙  (scratchpad 에서 node 로 40개 테스트를 통과시킨 그 코드)
+   ═══════════════════════════════════════════════════════════ */
+const CELL = {};
+(() => {
+  const put = (id, x, y) => { CELL[id] = { id, x, y }; };
+  put('o0', 90, 90); put('o5', 90, 10); put('o10', 10, 10); put('o15', 10, 90);
+  for (let i = 1; i <= 4; i++) put('o' + i, 90, 90 - 16 * i);
+  for (let i = 1; i <= 4; i++) put('o' + (5 + i), 90 - 16 * i, 10);
+  for (let i = 1; i <= 4; i++) put('o' + (10 + i), 10, 10 + 16 * i);
+  for (let i = 1; i <= 4; i++) put('o' + (15 + i), 10 + 16 * i, 90);
+  put('C', 50, 50);
+  put('a1', 76.67, 23.33); put('a2', 63.33, 36.67);
+  put('a3', 36.67, 63.33); put('a4', 23.33, 76.67);
+  put('b1', 23.33, 23.33); put('b2', 36.67, 36.67);
+  put('b3', 63.33, 63.33); put('b4', 76.67, 76.67);
+})();
+const O = (n) => 'o' + n;
+const OUTER = []; for (let i = 1; i <= 19; i++) OUTER.push(O(i)); OUTER.push('OUT');
+const ROUTES = {
+  outer: OUTER,
+  diagA: [O(1),O(2),O(3),O(4),O(5),'a1','a2','C','a3','a4',O(15),O(16),O(17),O(18),O(19),'OUT'],
+  diagB: [O(1),O(2),O(3),O(4),O(5),O(6),O(7),O(8),O(9),O(10),'b1','b2','C','b3','b4','OUT'],
+  center:[O(1),O(2),O(3),O(4),O(5),'a1','a2','C','b3','b4','OUT'],
+};
+function switchRoute(route, idx) {
+  const cell = ROUTES[route][idx];
+  if (cell === O(5)  && route === 'outer') return { route: 'diagA',  idx };
+  if (cell === O(10) && route === 'outer') return { route: 'diagB',  idx };
+  if (cell === 'C'   && route === 'diagA') return { route: 'center', idx };
+  return { route, idx };
+}
+const YUT = {
+  BACK:{key:'BACK',name:'백도',step:-1,again:false},
+  DO:  {key:'DO',  name:'도',  step:1, again:false},
+  GAE: {key:'GAE', name:'개',  step:2, again:false},
+  GEOL:{key:'GEOL',name:'걸',  step:3, again:false},
+  YUT: {key:'YUT', name:'윷',  step:4, again:true },
+  MO:  {key:'MO',  name:'모',  step:5, again:true },
+};
+function rollYut(useBack) {
+  const n = [0,0,0,0].map(() => (Math.random() < 0.6 ? 1 : 0)).reduce((a,b)=>a+b,0);
+  if (n === 0) return YUT.MO;
+  if (n === 1) return (useBack && Math.random() < 0.25) ? YUT.BACK : YUT.DO;
+  return [null,null,YUT.GAE,YUT.GEOL,YUT.YUT][n];
+}
+function movePiece(pos, step) {
+  if (pos.waiting) {
+    if (step < 0) return null;
+    return { ...switchRoute('outer', step - 1), done: false };
+  }
+  const idx = pos.idx + step;
+  if (idx >= ROUTES[pos.route].length - 1) return { done: true };
+  if (idx < -1) return null;
+  if (idx === -1) return { route: 'outer', idx: -1, done: false };
+  return { ...switchRoute(pos.route, idx), done: false };
+}
+function cellOf(pos) {
+  if (pos.waiting || pos.done) return null;
+  return pos.idx === -1 ? 'o0' : ROUTES[pos.route][pos.idx];
+}
+
+/* ═══════════════════════════════════════════════════════════
+   게임 상태
+   ═══════════════════════════════════════════════════════════ */
+const COLORS = ['#4d9de0','#e05a4d','#4ea65a','#c77dd6','#e0a43c','#4dd6c8'];
+const el = (id) => document.getElementById(id);
+
+let cfg = {
+  teams: [
+    { name: '', horses: 4, color: COLORS[0] },
+    { name: '', horses: 4, color: COLORS[1] },
+  ],
+  autoRoll: false,   // false = 실물 윷을 던지고 결과를 누른다
+  useBack: true,
+};
+let G = null;        // 진행 중인 판
+let history = [];    // 되돌리기용 스냅샷
+
+/* ── 설정 화면 ── */
+function drawSetup() {
+  el('teamBox').innerHTML = cfg.teams.map((t, i) => `
+    <div class="team" style="--c:${t.color}">
+      <p class="lab">${i + 1}팀 이름</p>
+      <input type="text" data-nm="${i}" value="${t.name.replace(/"/g,'&quot;')}"
+             placeholder="${i === 0 ? '청팀' : '홍팀'}" maxlength="8" style="--c:${t.color}">
+      <p class="lab" style="margin-top:2vmin">말 개수</p>
+      <div class="horses" style="--c:${t.color}">
+        ${[1,2,3,4].map(n => `<button data-h="${i}" data-n="${n}" class="${t.horses===n?'on':''}">${n}</button>`).join('')}
+      </div>
+      <div class="swatch">
+        ${COLORS.map(c => `<button data-c="${i}" data-col="${c}" class="${t.color===c?'on':''}"
+           style="background:${c}"></button>`).join('')}
+      </div>
+    </div>`).join('');
+
+  el('teamBox').querySelectorAll('[data-nm]').forEach(i =>
+    i.oninput = () => { cfg.teams[+i.dataset.nm].name = i.value; });
+  el('teamBox').querySelectorAll('[data-h]').forEach(b =>
+    b.onclick = () => { cfg.teams[+b.dataset.h].horses = +b.dataset.n; drawSetup(); });
+  el('teamBox').querySelectorAll('[data-c]').forEach(b =>
+    b.onclick = () => {
+      const i = +b.dataset.c, col = b.dataset.col;
+      if (cfg.teams[1 - i].color === col) cfg.teams[1 - i].color = cfg.teams[i].color;
+      cfg.teams[i].color = col; drawSetup();
+    });
+}
+el('tgRoll').onclick = () => {
+  cfg.autoRoll = !cfg.autoRoll;
+  el('tgRoll').classList.toggle('on', cfg.autoRoll);
+  el('rollModeTxt').textContent = cfg.autoRoll ? '앱이 대신 던져 줍니다' : '직접 던지고 결과를 누릅니다';
+};
+el('tgBack').onclick = () => {
+  cfg.useBack = !cfg.useBack;
+  el('tgBack').classList.toggle('on', cfg.useBack);
+};
+
+/* ── 판 시작 ── */
+el('start').onclick = () => {
+  const names = cfg.teams.map((t, i) => t.name.trim() || (i === 0 ? '청팀' : '홍팀'));
+  G = {
+    teams: cfg.teams.map((t, i) => ({
+      name: names[i], color: t.color,
+      pieces: Array.from({ length: t.horses }, () => ({ waiting: true })),
+    })),
+    turn: 0, queue: [], throws: 1, sel: null, over: false,
+  };
+  history = [];
+  el('setup').classList.add('hide');
+  el('game').classList.remove('hide');
+  el('win').classList.add('hide');
+  render();
+};
+el('quit').onclick = () => {
+  el('game').classList.add('hide'); el('win').classList.add('hide');
+  el('setup').classList.remove('hide');
+};
+el('again').onclick = () => el('start').onclick();
+
+/* ── 말 묶음: 같은 칸에 선 우리 말은 «업힌» 것으로 함께 움직인다 ── */
+function groupsOf(ti) {
+  const m = new Map();
+  G.teams[ti].pieces.forEach((p, pi) => {
+    if (p.done) return;
+    const key = p.waiting ? 'W' : cellOf(p);
+    if (p.waiting) { m.set('W' + pi, { key: 'W', idxs: [pi], pos: p }); return; }
+    if (!m.has(key)) m.set(key, { key, idxs: [], pos: p });
+    m.get(key).idxs.push(pi);
+  });
+  return [...m.values()];
+}
+/* 지금 결과로 움직일 수 있는 무리들 */
+function movable(step) {
+  const out = [];
+  groupsOf(G.turn).forEach(g => {
+    if (g.pos.waiting && step < 0) return;           // 대기 말은 백도 불가
+    const dest = movePiece(g.pos, step);
+    if (!dest) return;
+    if (g.pos.waiting && out.some(o => o.pos.waiting)) return;  // 대기 말은 하나만 보여준다
+    out.push({ ...g, dest });
+  });
+  return out;
+}
+
+/* ── 그리기 ── */
+function drawBoard() {
+  const L = (a, b) => `<line class="line" x1="${CELL[a].x}" y1="${CELL[a].y}" x2="${CELL[b].x}" y2="${CELL[b].y}"/>`;
+  let s = L('o0','o5') + L('o5','o10') + L('o10','o15') + L('o15','o0') + L('o5','o15') + L('o10','o0');
+
+  const step = G.queue[G.sel ?? -1]?.step;
+  const moves = (G.sel != null) ? movable(step) : [];
+  const destCells = new Set(moves.map(m => m.dest.done ? 'OUT' : cellOf(m.dest)));
+
+  Object.values(CELL).forEach(c => {
+    const big = ['o0','o5','o10','o15','C'].includes(c.id);
+    const pick = destCells.has(c.id);
+    s += `<circle class="spot ${big?'big':''} ${pick?'pick blink':''}" cx="${c.x}" cy="${c.y}" r="${big?7:4.6}"/>`;
+  });
+  s += `<text class="lbl" x="${CELL.o0.x}" y="${CELL.o0.y+12.5}">출발·도착</text>`;
+
+  // 대기 말 — 판 «바깥» 에 팀별로 줄 세운다. 몇 개 남았는지 한눈에 보여야 한다.
+  G.teams.forEach((t, ti) => {
+    const wait = t.pieces.filter(p => p.waiting).length;
+    const y = ti === 0 ? -3.5 : 104;
+    for (let i = 0; i < wait; i++) {
+      const sel = (G.sel != null) && ti === G.turn && moves.some(m => m.pos.waiting);
+      s += `<circle class="horse ${sel ? 'sel blink' : ''}" cx="${6 + i * 11}" cy="${y}" r="4.4" fill="${t.color}"/>`;
+    }
+    if (wait) s += `<text class="lbl" x="${6 + wait * 11 + 4}" y="${y}" style="text-anchor:start">대기</text>`;
+  });
+
+  // 도착 지점 표시 — 「이 결과로 날 수 있다」를 눈에 보이게
+  if (destCells.has('OUT')) {
+    s += `<circle class="goal blink" cx="${CELL.o0.x}" cy="${CELL.o0.y}" r="10.5"/>`;
+    s += `<text class="lbl" x="${CELL.o0.x}" y="${CELL.o0.y+12.5}" style="fill:#fff">🎉 난다!</text>`;
+  }
+
+  // 말
+  G.teams.forEach((t, ti) => {
+    groupsOf(ti).forEach(g => {
+      if (g.pos.waiting) return;
+      const c = CELL[cellOf(g.pos)];
+      const off = ti === 0 ? -2.6 : 2.6;
+      const sel = moves.some(m => m.key === g.key && ti === G.turn);
+      s += `<circle class="horse ${sel?'sel blink':''}" cx="${c.x+off}" cy="${c.y-2.6}" r="5.2" fill="${t.color}"/>`;
+      if (g.idxs.length > 1) s += `<text class="hnum" x="${c.x+off}" y="${c.y-2.6}">${g.idxs.length}</text>`;
+    });
+  });
+
+  // 누를 수 있는 넓은 영역 (작은 말은 손가락으로 못 맞춘다)
+  moves.forEach(m => {
+    if (m.pos.waiting) return;
+    const c = CELL[cellOf(m.pos)];
+    s += `<circle class="tap" cx="${c.x}" cy="${c.y}" r="10" data-mv="${m.key}"/>`;
+  });
+  el('board').innerHTML = s;
+  el('board').querySelectorAll('[data-mv]').forEach(n =>
+    n.onclick = () => doMove(moves.find(m => m.key === n.dataset.mv)));
+}
+
+function render() {
+  if (G.over) return;
+  const t = G.teams[G.turn];
+
+  el('scores').innerHTML = G.teams.map((x, i) => {
+    const done = x.pieces.filter(p => p.done).length;
+    const wait = x.pieces.filter(p => p.waiting).length;
+    return `<div class="sc ${i===G.turn?'turn':''}" style="--c:${x.color}">
+      <div class="nm">${x.name}</div>
+      <div class="st" style="margin:0">난 말</div>
+      <div class="big">${done}<span style="font-size:2.6vmin;color:#a8977f"> / ${x.pieces.length}</span></div>
+      <div class="st">🐴 대기 ${wait} · 판 위 ${x.pieces.length-done-wait}</div></div>`;
+  }).join('');
+
+  el('queue').innerHTML = G.queue.map((y, i) =>
+    `<button class="chip ${y.key==='BACK'?'back':''} ${i===G.sel?'on':''}" data-q="${i}">${y.name}</button>`).join('')
+    || `<span style="font-size:2.2vmin;color:#7a6144;font-weight:700">아직 던진 결과가 없습니다</span>`;
+  el('queue').querySelectorAll('[data-q]').forEach(b =>
+    b.onclick = () => { G.sel = +b.dataset.q; render(); });
+
+  // 던지기 UI — 설정에 따라 한쪽만 보인다
+  el('rollWrap').classList.toggle('hide', !cfg.autoRoll);
+  el('pad').classList.toggle('hide', cfg.autoRoll);
+  el('rollBtn').disabled = G.throws <= 0;
+  const keys = (cfg.useBack ? ['BACK'] : []).concat(['DO','GAE','GEOL','YUT','MO']);
+  el('pad').innerHTML = keys.map(k =>
+    `<button data-y="${k}" class="${k==='BACK'?'back':''}" ${G.throws<=0?'disabled':''}>${YUT[k].name}</button>`).join('');
+  el('pad').querySelectorAll('[data-y]').forEach(b => b.onclick = () => addResult(YUT[b.dataset.y]));
+
+  // 안내 문구
+  let msg = '';
+  if (G.throws > 0) msg = `<b style="color:${t.color}">${t.name}</b> 차례 — 윷을 던지세요` +
+                          (G.throws > 1 ? ` <span style="color:#e0a43c">(${G.throws}번 남음)</span>` : '');
+  else if (!G.queue.length) msg = '결과를 다 썼습니다';
+  else if (G.sel == null) msg = '쓸 결과를 고르세요';
+  else {
+    const mv = movable(G.queue[G.sel].step);
+    msg = mv.length ? `<b>${G.queue[G.sel].name}</b> — 움직일 말을 판에서 누르세요`
+                    : `<b>${G.queue[G.sel].name}</b> 로 움직일 말이 없습니다 → 「결과 버리기」`;
+  }
+  el('msg').innerHTML = msg;
+
+  // 대기 말 내보내기 버튼
+  const waitMv = (G.sel != null) ? movable(G.queue[G.sel].step).find(m => m.pos.waiting) : null;
+  let extra = el('newHorse');
+  if (!extra) {
+    extra = document.createElement('button');
+    extra.id = 'newHorse'; extra.className = 'roll';
+    extra.style.cssText = 'background:#4ea65a;color:#fff;margin-top:.4vmin';
+    el('msg').after(extra);
+  }
+  extra.classList.toggle('hide', !waitMv);
+  if (waitMv) {
+    extra.textContent = `🐴 새 말 출발 (대기 ${t.pieces.filter(p=>p.waiting).length})`;
+    extra.onclick = () => doMove(waitMv);
+  }
+
+  el('undo').disabled = !history.length;
+  el('pass').disabled = G.sel == null || movable(G.queue[G.sel].step).length > 0;
+  drawBoard();
+}
+
+/* ── 조작 ── */
+function snap() {
+  history.push(JSON.stringify({ G, }));
+  if (history.length > 40) history.shift();
+}
+el('undo').onclick = () => {
+  if (!history.length) return;
+  G = JSON.parse(history.pop()).G;
+  el('win').classList.add('hide');
+  render();
+};
+el('rollBtn').onclick = () => addResult(rollYut(cfg.useBack));
+el('pass').onclick = () => { snap(); G.queue.splice(G.sel, 1); G.sel = null; endIfDone(); render(); };
+
+function addResult(y) {
+  if (G.throws <= 0) return;
+  snap();
+  G.throws -= 1;
+  G.queue.push({ key: y.key, name: y.name, step: y.step });
+  if (y.again) G.throws += 1;
+  if (G.sel == null) G.sel = G.queue.length - 1;
+  render();
+}
+
+function doMove(m) {
+  if (!m) return;
+  snap();
+  const me = G.teams[G.turn];
+  const dest = m.dest;
+
+  m.idxs.forEach(i => { me.pieces[i] = dest.done ? { done: true } : { ...dest }; });
+
+  let again = false;
+  if (!dest.done) {
+    // 잡기 — 도착 칸에 상대 말이 있으면 대기로 돌려보내고 한 번 더
+    const other = G.teams[1 - G.turn];
+    const here = cellOf(dest);
+    const hit = other.pieces.filter(p => !p.done && !p.waiting && cellOf(p) === here);
+    if (hit.length) { hit.forEach(p => { p.waiting = true; delete p.route; delete p.idx; }); again = true; }
+  }
+
+  G.queue.splice(G.sel, 1);
+  G.sel = G.queue.length ? 0 : null;
+  if (again) G.throws += 1;
+
+  if (me.pieces.every(p => p.done)) { G.over = true; showWin(me); return; }
+  endIfDone();
+  render();
+}
+
+function endIfDone() {
+  if (G.throws <= 0 && !G.queue.length) {   // 턴 종료
+    G.turn = 1 - G.turn; G.throws = 1; G.sel = null;
+  }
+}
+
+function showWin(team) {
+  el('winWho').style.setProperty('--c', team.color);
+  el('winWho').innerHTML = `🎉<br>${team.name} 승리!`;
+  el('win').classList.remove('hide');
+}
+
+drawSetup();
+</script>
+</body>
+</html>
