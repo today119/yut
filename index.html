@@ -147,6 +147,19 @@ svg{width:100%;height:100%;max-width:min(92vmin,100%);max-height:100%;display:bl
 .rname{font-size:16vmin;font-weight:900;color:#2b211a;letter-spacing:-.03em;animation:pop .32s both}
 .rname small{display:block;font-size:3vmin;color:#8a7358;margin-top:1vmin;font-weight:800}
 
+/* 차례 바뀜 — 공수가 바뀌는 걸 놓치면 엉뚱한 팀이 던진다. 화면을 한 번 덮어 알린다. */
+#turn{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:15;
+  pointer-events:none;background:#f4ecdcd9}
+#turn .band{width:100%;padding:6vmin 0;text-align:center;background:var(--c);
+  box-shadow:0 2vmin 5vmin #0003;animation:sweep .55s cubic-bezier(.2,.9,.25,1) both}
+#turn .who{font-size:11vmin;font-weight:900;color:#fff;letter-spacing:-.03em;line-height:1.1}
+#turn .sub{font-size:3.4vmin;font-weight:900;color:#ffffffcc;margin-top:1vmin}
+@keyframes sweep{
+  0%  {transform:translateX(-100%) skewX(-8deg);opacity:0}
+  60% {transform:translateX(2%) skewX(-8deg);opacity:1}
+  100%{transform:translateX(0) skewX(0);opacity:1}
+}
+
 /* 승리 */
 #win{position:fixed;inset:0;background:#f4ecdcf5;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:3vmin;z-index:9}
@@ -173,6 +186,14 @@ svg{width:100%;height:100%;max-width:min(92vmin,100%);max-height:100%;display:bl
       <div class="opt">
         <div><b>백도</b><span>뒤로 한 칸</span></div>
         <button class="toggle on" id="tgBack"><i></i></button>
+      </div>
+      <div class="opt">
+        <div><b>효과음</b><span>윷·모, 잡기, 도착</span></div>
+        <button class="toggle on" id="tgSfx"><i></i></button>
+      </div>
+      <div class="opt">
+        <div><b>음성 안내</b><span>차례가 된 팀 이름을 불러 줍니다</span></div>
+        <button class="toggle on" id="tgVoice"><i></i></button>
       </div>
     </div>
   </div>
@@ -210,6 +231,13 @@ svg{width:100%;height:100%;max-width:min(92vmin,100%);max-height:100%;display:bl
       <button id="fs2">⛶ 전체화면</button>
       <button id="quit">처음으로</button>
     </div>
+  </div>
+</div>
+
+<div id="turn" class="hide">
+  <div class="band" id="turnBand">
+    <div class="who" id="turnWho"></div>
+    <div class="sub">차례</div>
   </div>
 </div>
 
@@ -299,6 +327,91 @@ function cellOf(pos) {
    게임 상태
    ═══════════════════════════════════════════════════════════ */
 const COLORS = ['#4d9de0','#e05a4d','#4ea65a','#c77dd6','#e0a43c','#4dd6c8'];
+
+/* ══ 효과음 ══
+   음원 파일을 두면 단일 파일이 깨진다. 그래서 그 자리에서 «소리를 만들어» 쓴다.
+   ⚠️ 아이폰은 «사람이 누른 직후»에만 소리를 낼 수 있다 → 「시작하기」에서 한 번 깨워 둔다. */
+let AC = null;
+function ac() {
+  try {
+    if (!AC) { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); }
+    if (AC && AC.state === 'suspended') AC.resume();
+  } catch (e) { AC = null; }
+  return AC;
+}
+/** 음 하나. slide 를 주면 그 음까지 미끄러진다(빠밤 의 「밤」). */
+function tone(f, at, dur, opt) {
+  const a = ac(); if (!a || !cfg.sfx) return;
+  opt = opt || {};
+  const t = a.currentTime + at;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = opt.type || 'triangle';
+  o.frequency.setValueAtTime(f, t);
+  if (opt.slide) o.frequency.exponentialRampToValueAtTime(opt.slide, t + dur);
+  const v = opt.gain == null ? 0.2 : opt.gain;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+/** 윷가락이 부딪히는 「딱」 — 짧은 잡음을 대나무처럼 걸러 낸다. */
+function clack(at, gain) {
+  const a = ac(); if (!a || !cfg.sfx) return;
+  const t = a.currentTime + at, n = Math.floor(a.sampleRate * 0.05);
+  const buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 6);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const bp = a.createBiquadFilter(); bp.type = 'bandpass';
+  bp.frequency.value = 1100 + Math.random() * 900; bp.Q.value = 3;
+  const g = a.createGain(); g.gain.value = gain == null ? 0.35 : gain;
+  src.connect(bp).connect(g).connect(a.destination);
+  src.start(t);
+}
+/* 팀 이름을 불러 준다.  폰·태블릿에 들어 있는 한국어 목소리를 쓴다(내려받는 것 없음). */
+function speak(text) {
+  if (!cfg.voice) return;
+  try {
+    const S = window.speechSynthesis;
+    if (!S) return;
+    S.cancel();                                  // 겹쳐 읽지 않게
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ko-KR'; u.rate = 1.05; u.pitch = 1.05;
+    const ko = S.getVoices().find((v) => /ko/i.test(v.lang));
+    if (ko) u.voice = ko;
+    S.speak(u);
+  } catch (e) { /* 지원 안 하면 조용히 넘어간다 */ }
+}
+
+const SFX = {
+  roll() { [0, 0.09, 0.17, 0.26, 0.36, 0.48].forEach((t, i) => clack(t, 0.3 - i * 0.03)); },
+  // 윷·모 — 「빠밤!」
+  fanfare() {
+    tone(523, 0,    0.12, { type: 'square', gain: 0.16 });
+    tone(784, 0.11, 0.42, { type: 'square', gain: 0.2 });
+    tone(392, 0.11, 0.42, { type: 'triangle', gain: 0.12 });
+  },
+  // 잡기 — 한 방 치고 「빠바밤!」
+  capture() {
+    tone(160, 0,    0.14, { type: 'sawtooth', gain: 0.24, slide: 70 });
+    tone(659, 0.12, 0.11, { type: 'square', gain: 0.18 });
+    tone(784, 0.23, 0.11, { type: 'square', gain: 0.19 });
+    tone(1047, 0.34, 0.46, { type: 'square', gain: 0.22 });
+  },
+  // 말이 났다
+  home() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.3, { gain: 0.18 })); },
+  move() { tone(660, 0, 0.07, { gain: 0.1 }); },
+  // 차례가 넘어간다 — 「뿅↘︎뿅↗︎」 두 음으로 «바뀌었다»는 걸 알린다
+  turn() {
+    tone(587, 0,    0.13, { type: 'triangle', gain: 0.16, slide: 440 });
+    tone(523, 0.14, 0.26, { type: 'triangle', gain: 0.18, slide: 698 });
+  },
+  win() {
+    [[523,0],[523,.13],[659,.26],[784,.39],[1047,.52]].forEach(([f, t]) =>
+      tone(f, t, t === 0.52 ? 0.8 : 0.16, { type: 'square', gain: 0.2 }));
+    tone(392, 0.52, 0.8, { type: 'triangle', gain: 0.12 });
+  },
+};
 const el = (id) => document.getElementById(id);
 
 let cfg = {
@@ -308,6 +421,8 @@ let cfg = {
   ],
   autoRoll: false,   // false = 실물 윷을 던지고 결과를 누른다
   useBack: true,
+  sfx: true,
+  voice: true,
 };
 let G = null;        // 진행 중인 판
 let history = [];    // 되돌리기용 스냅샷
@@ -349,6 +464,16 @@ el('tgBack').onclick = () => {
   cfg.useBack = !cfg.useBack;
   el('tgBack').classList.toggle('on', cfg.useBack);
 };
+el('tgSfx').onclick = () => {
+  cfg.sfx = !cfg.sfx;
+  el('tgSfx').classList.toggle('on', cfg.sfx);
+  if (cfg.sfx) SFX.fanfare();          // 켠 순간 어떤 소리인지 들려준다
+};
+el('tgVoice').onclick = () => {
+  cfg.voice = !cfg.voice;
+  el('tgVoice').classList.toggle('on', cfg.voice);
+  if (cfg.voice) speak('음성 안내를 켰습니다');
+};
 
 /* ── 판 시작 ── */
 el('start').onclick = () => {
@@ -364,8 +489,11 @@ el('start').onclick = () => {
   el('setup').classList.add('hide');
   el('game').classList.remove('hide');
   el('win').classList.add('hide');
+  el('turn').classList.add('hide');
+  ac();                       // ★ 아이폰은 «누른 직후»에만 소리를 깨울 수 있다
   keepAwake(true);
   render();
+  showTurn();
 };
 el('quit').onclick = () => {
   el('game').classList.add('hide'); el('win').classList.add('hide');
@@ -536,6 +664,8 @@ el('undo').onclick = () => {
   if (!history.length) return;
   G = JSON.parse(history.pop()).G;
   el('win').classList.add('hide');
+  el('turn').classList.add('hide');
+  try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {}
   render();
 };
 /* ── 던지는 연출 ──
@@ -548,6 +678,7 @@ function showThrow(flats, y, done) {
           style="animation-delay:${i * 0.07}s"></div>`).join('');
   name.style.visibility = 'hidden';
   box.classList.remove('hide');
+  SFX.roll();
 
   let ended = false;
   const finish = () => {
@@ -563,6 +694,8 @@ function showThrow(flats, y, done) {
                                        : (y.key === 'BACK' ? '<small>뒤로 한 칸</small>' : ''));
     name.style.animation = 'none'; name.offsetHeight; name.style.animation = '';
     name.style.visibility = 'visible';
+    if (y.again) { SFX.fanfare(); speak(y.name + '! 한 번 더'); }
+    else { SFX.move(); speak(y.name); }
   }, 900);
   const t2 = setTimeout(finish, y.again ? 2000 : 1750);
   box.onclick = () => { clearTimeout(t1); clearTimeout(t2); finish(); };
@@ -578,6 +711,10 @@ el('pass').onclick = () => { snap(); G.queue.splice(G.sel, 1); G.sel = null; end
 
 function addResult(y) {
   if (G.throws <= 0) return;
+  if (!cfg.autoRoll) {                 // 실물로 던진 경우 — 여기서 소리를 낸다
+    if (y.again) { SFX.fanfare(); speak(y.name + '! 한 번 더'); }
+    else SFX.move();
+  }
   snap();
   G.throws -= 1;
   G.queue.push({ key: y.key, name: y.name, step: y.step });
@@ -600,7 +737,15 @@ function doMove(m) {
     const other = G.teams[1 - G.turn];
     const here = cellOf(dest);
     const hit = other.pieces.filter(p => !p.done && !p.waiting && cellOf(p) === here);
-    if (hit.length) { hit.forEach(p => { p.waiting = true; delete p.route; delete p.idx; }); again = true; }
+    if (hit.length) {
+      hit.forEach(p => { p.waiting = true; delete p.route; delete p.idx; });
+      again = true;
+      SFX.capture();
+      speak(me.name + ', ' + other.name + ' 말 ' + hit.length + '개를 잡았습니다! 한 번 더');
+    }
+  } else {
+    SFX.home();
+    speak('났습니다!');
   }
 
   G.queue.splice(G.sel, 1);
@@ -615,10 +760,28 @@ function doMove(m) {
 function endIfDone() {
   if (G.throws <= 0 && !G.queue.length) {   // 턴 종료
     G.turn = 1 - G.turn; G.throws = 1; G.sel = null;
+    showTurn();
   }
 }
 
+/* 공수가 바뀌는 걸 놓치면 엉뚱한 팀이 던진다. 화면·소리·목소리 셋으로 알린다. */
+let turnTimer = null;
+function showTurn() {
+  const t = G.teams[G.turn];
+  const box = el('turn'), band = el('turnBand');
+  el('turnWho').textContent = t.name;
+  band.style.setProperty('--c', t.color);
+  band.style.animation = 'none'; band.offsetHeight; band.style.animation = '';
+  box.classList.remove('hide');
+  SFX.turn();
+  speak(t.name + ' 차례입니다');
+  clearTimeout(turnTimer);
+  turnTimer = setTimeout(() => box.classList.add('hide'), 1500);
+}
+
 function showWin(team) {
+  SFX.win();
+  speak(team.name + ' 승리!');
   el('winWho').style.setProperty('--c', team.color);
   el('winWho').innerHTML = `🎉<br>${team.name} 승리!`;
   el('win').classList.remove('hide');
