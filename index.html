@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1a1410">
+<meta name="theme-color" content="#f4ecdc">
 <title>윷놀이</title>
 <style>
 /* ── TV 미러링이 목적이다. 멀리서 보므로 글씨·말이 크고 대비가 세야 한다.
@@ -11,7 +11,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden}
 body{
-  background:#1a1410;color:#f5ece0;
+  background:#f4ecdc;color:#2b211a;
   font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
   font-weight:800;user-select:none;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -23,33 +23,33 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 #setup{height:100%;overflow-y:auto;padding:4vmin;display:flex;flex-direction:column;gap:2.4vmin;align-items:center}
 .title{font-size:7vmin;font-weight:900;letter-spacing:-.02em;margin:1vmin 0 0}
 .sub{font-size:2.4vmin;color:#a8977f;margin:0 0 1vmin}
-.card{width:100%;max-width:min(96vw,150vmin);background:#251d17;border:.4vmin solid #3a2e24;border-radius:3vmin;padding:3vmin}
+.card{width:100%;max-width:min(96vw,150vmin);background:#fffdf8;border:.4vmin solid #ddcdb0;border-radius:3vmin;padding:3vmin}
 .teams{display:flex;gap:2.4vmin;flex-wrap:wrap}
-.team{flex:1 1 40vmin;background:#1f1812;border-radius:2.4vmin;padding:2.4vmin;border-top:1vmin solid var(--c)}
-.lab{font-size:2.2vmin;color:#a8977f;margin:0 0 1vmin}
-input[type=text]{width:100%;background:#120e0a;border:.3vmin solid #3a2e24;border-radius:1.6vmin;
-  padding:1.6vmin 2vmin;font-size:3.4vmin;font-weight:900;color:#f5ece0}
+.team{flex:1 1 40vmin;background:#f9f3e7;border-radius:2.4vmin;padding:2.4vmin;border-top:1vmin solid var(--c)}
+.lab{font-size:2.2vmin;color:#8a7358;margin:0 0 1vmin}
+input[type=text]{width:100%;background:#fff;border:.3vmin solid #d8c6a6;border-radius:1.6vmin;
+  padding:1.6vmin 2vmin;font-size:3.4vmin;font-weight:900;color:#2b211a}
 input[type=text]:focus{outline:none;border-color:var(--c)}
 .horses{display:flex;gap:1.2vmin;margin-top:1.6vmin}
-.horses button{flex:1;padding:1.6vmin 0;border-radius:1.4vmin;background:#120e0a;border:.3vmin solid #3a2e24;
-  font-size:3vmin;font-weight:900;color:#8a7a66}
-.horses button.on{background:var(--c);border-color:var(--c);color:#12100d}
+.horses button{flex:1;padding:1.6vmin 0;border-radius:1.4vmin;background:#fff;border:.3vmin solid #d8c6a6;
+  font-size:3vmin;font-weight:900;color:#9b876c}
+.horses button.on{background:var(--c);border-color:#2b211a;color:#fff}
 .swatch{display:flex;gap:1vmin;margin-top:1.6vmin}
 .swatch button{width:5vmin;height:5vmin;border-radius:50%;border:.5vmin solid transparent}
-.swatch button.on{border-color:#f5ece0}
+.swatch button.on{border-color:#2b211a}
 .opts{display:flex;gap:2vmin;flex-wrap:wrap;margin-top:.5vmin}
 .opt{flex:1 1 34vmin;display:flex;align-items:center;justify-content:space-between;gap:1.6vmin;
-  background:#1f1812;border-radius:2vmin;padding:2vmin 2.4vmin}
+  background:#f9f3e7;border-radius:2vmin;padding:2vmin 2.4vmin}
 .opt b{font-size:2.6vmin}
-.opt span{display:block;font-size:2vmin;color:#a8977f;font-weight:700;margin-top:.4vmin}
-.toggle{flex-shrink:0;width:12vmin;height:6vmin;border-radius:3vmin;background:#3a2e24;position:relative;transition:background .15s}
+.opt span{display:block;font-size:2vmin;color:#8a7358;font-weight:700;margin-top:.4vmin}
+.toggle{flex-shrink:0;width:12vmin;height:6vmin;border-radius:3vmin;background:#cbb794;position:relative;transition:background .15s}
 .toggle i{position:absolute;top:.7vmin;left:.7vmin;width:4.6vmin;height:4.6vmin;border-radius:50%;
-  background:#f5ece0;transition:transform .15s}
+  background:#fff;transition:transform .15s}
 .toggle.on{background:#4ea65a}
 .toggle.on i{transform:translateX(6vmin)}
-.go{width:100%;max-width:min(96vw,150vmin);padding:3vmin;border-radius:2.4vmin;background:#e0a43c;color:#1a1410;
-  font-size:4.4vmin;font-weight:900;box-shadow:0 1vmin 0 #a8752099}
-.go:active{transform:translateY(.5vmin);box-shadow:0 .5vmin 0 #a8752099}
+.go{width:100%;max-width:min(96vw,150vmin);padding:3vmin;border-radius:2.4vmin;background:#d98e1f;color:#fff;
+  font-size:4.4vmin;font-weight:900;box-shadow:0 1vmin 0 #9c6410}
+.go:active{transform:translateY(.5vmin);box-shadow:0 .5vmin 0 #9c6410}
 
 /* ── 게임 화면 : 가로면 좌우, 세로면 위아래 ── */
 #game{height:100%;display:flex;gap:2vmin;padding:2vmin}
@@ -60,48 +60,48 @@ input[type=text]:focus{outline:none;border-color:var(--c)}
 
 /* 점수판 — 지금 누구 차례인지가 제일 커야 한다 */
 .scores{display:flex;gap:1.6vmin}
-.sc{flex:1;background:#251d17;border-radius:2vmin;padding:1.6vmin;border:.5vmin solid transparent;opacity:.45;transition:all .2s}
-.sc.turn{opacity:1;border-color:var(--c);background:#2e241b;transform:scale(1.03)}
+.sc{flex:1;background:#fffdf8;border-radius:2vmin;padding:1.6vmin;border:.5vmin solid #e4d7bd;opacity:.5;transition:all .2s}
+.sc.turn{opacity:1;border-color:var(--c);background:#fff6e4;transform:scale(1.03)}
 .sc .nm{font-size:3vmin;font-weight:900;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sc .st{font-size:2vmin;color:#a8977f;margin-top:.5vmin;font-weight:700;white-space:nowrap}
-.sc .big{font-size:5vmin;font-weight:900;color:#f5ece0}
+.sc .st{font-size:2vmin;color:#8a7358;margin-top:.5vmin;font-weight:700;white-space:nowrap}
+.sc .big{font-size:5vmin;font-weight:900;color:#2b211a}
 
 /* 윷 결과 버튼 */
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2vmin}
-.pad button{padding:2.2vmin 0;border-radius:1.8vmin;background:#33281f;font-size:3.4vmin;font-weight:900;
-  border:.3vmin solid #4a3a2c}
-.pad button:active{background:#e0a43c;color:#1a1410}
-.pad button.back{background:#3d2420;border-color:#6b3a30;color:#e8a89c}
-.roll{padding:3vmin;border-radius:2vmin;background:#e0a43c;color:#1a1410;font-size:4vmin;font-weight:900;width:100%}
+.pad button{padding:2.2vmin 0;border-radius:1.8vmin;background:#fff;font-size:3.4vmin;font-weight:900;
+  border:.3vmin solid #d8c6a6;box-shadow:0 .5vmin 0 #e0d0b2}
+.pad button:active{background:#d98e1f;color:#fff;transform:translateY(.4vmin);box-shadow:none}
+.pad button.back{background:#fde8e4;border-color:#e0a99c;color:#a03c28}
+.roll{padding:3vmin;border-radius:2vmin;background:#d98e1f;color:#fff;font-size:4vmin;font-weight:900;width:100%}
 .roll:disabled{opacity:.3}
 .queue{display:flex;gap:1vmin;flex-wrap:wrap;min-height:7vmin;align-content:flex-start}
-.chip{padding:1.4vmin 2.4vmin;border-radius:1.6vmin;background:#4a3a2c;font-size:3vmin;font-weight:900;
+.chip{padding:1.4vmin 2.4vmin;border-radius:1.6vmin;background:#e8dcc4;color:#2b211a;font-size:3vmin;font-weight:900;
   border:.4vmin solid transparent}
-.chip.on{background:#e0a43c;color:#1a1410;border-color:#fff}
-.chip.back{background:#6b3a30;color:#ffd9d1}
-.msg{font-size:2.4vmin;color:#e0c89c;font-weight:700;line-height:1.45;min-height:7vmin}
+.chip.on{background:#d98e1f;color:#fff;border-color:#2b211a}
+.chip.back{background:#f6cfc6;color:#8a2e1c}
+.msg{font-size:2.4vmin;color:#6b5540;font-weight:700;line-height:1.45;min-height:7vmin}
 .row{display:flex;gap:1.2vmin}
-.row button{flex:1;padding:1.8vmin 0;border-radius:1.6vmin;background:#33281f;font-size:2.6vmin;font-weight:900;
-  border:.3vmin solid #4a3a2c}
+.row button{flex:1;padding:1.8vmin 0;border-radius:1.6vmin;background:#fffdf8;font-size:2.6vmin;font-weight:900;
+  border:.3vmin solid #d8c6a6}
 .row button:disabled{opacity:.3}
 
 /* 윷판 */
 svg{width:100%;height:100%;max-width:min(92vmin,100%);max-height:100%;display:block}
-.line{stroke:#5c4630;stroke-width:.7;fill:none}
-.spot{fill:#2a2119;stroke:#6b5038;stroke-width:.7}
-.spot.big{fill:#332619;stroke:#8a6a44;stroke-width:1.1}
-.spot.pick{fill:#4a3a28;stroke:#fff;stroke-width:1.6;stroke-dasharray:2.4 1.8}
-.goal{fill:none;stroke:#fff;stroke-width:1.4;stroke-dasharray:2.4 1.8}
-.lbl{fill:#7a6144;font-size:3.4px;font-weight:900;text-anchor:middle;dominant-baseline:central}
-.horse{stroke:#12100d;stroke-width:.9}
-.horse.sel{stroke:#fff;stroke-width:1.8}
-.hnum{font-size:4.6px;font-weight:900;text-anchor:middle;dominant-baseline:central;fill:#12100d}
+.line{stroke:#b08a54;stroke-width:.9;fill:none}
+.spot{fill:#f3e8d0;stroke:#b08a54;stroke-width:.9}
+.spot.big{fill:#e4d0a6;stroke:#8a6531;stroke-width:1.3}
+.spot.pick{fill:#fff3cc;stroke:#2b211a;stroke-width:1.6;stroke-dasharray:2.4 1.8}
+.goal{fill:none;stroke:#2b211a;stroke-width:1.6;stroke-dasharray:2.4 1.8}
+.lbl{fill:#8a7358;font-size:3.4px;font-weight:900;text-anchor:middle;dominant-baseline:central}
+.horse{stroke:#fff;stroke-width:1.1}
+.horse.sel{stroke:#2b211a;stroke-width:2}
+.hnum{font-size:4.6px;font-weight:900;text-anchor:middle;dominant-baseline:central;fill:#fff}
 .tap{fill:transparent;cursor:pointer}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 .blink{animation:pulse .85s infinite}
 
 /* 승리 */
-#win{position:fixed;inset:0;background:#1a1410f2;display:flex;flex-direction:column;
+#win{position:fixed;inset:0;background:#f4ecdcf5;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:3vmin;z-index:9}
 #win .who{font-size:11vmin;font-weight:900;color:var(--c);text-align:center;padding:0 4vmin}
 </style>
@@ -351,7 +351,7 @@ function drawBoard() {
   // 도착 지점 표시 — 「이 결과로 날 수 있다」를 눈에 보이게
   if (destCells.has('OUT')) {
     s += `<circle class="goal blink" cx="${CELL.o0.x}" cy="${CELL.o0.y}" r="10.5"/>`;
-    s += `<text class="lbl" x="${CELL.o0.x}" y="${CELL.o0.y+12.5}" style="fill:#fff">🎉 난다!</text>`;
+    s += `<text class="lbl" x="${CELL.o0.x}" y="${CELL.o0.y+12.5}" style="fill:#2b211a">🎉 난다!</text>`;
   }
 
   // 말
@@ -393,7 +393,7 @@ function render() {
 
   el('queue').innerHTML = G.queue.map((y, i) =>
     `<button class="chip ${y.key==='BACK'?'back':''} ${i===G.sel?'on':''}" data-q="${i}">${y.name}</button>`).join('')
-    || `<span style="font-size:2.2vmin;color:#7a6144;font-weight:700">아직 던진 결과가 없습니다</span>`;
+    || `<span style="font-size:2.2vmin;color:#9b876c;font-weight:700">아직 던진 결과가 없습니다</span>`;
   el('queue').querySelectorAll('[data-q]').forEach(b =>
     b.onclick = () => { G.sel = +b.dataset.q; render(); });
 
