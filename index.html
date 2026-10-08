@@ -116,6 +116,8 @@ svg{width:100%;height:100%;max-width:min(92vmin,100%);max-height:100%;display:bl
 .tap{fill:transparent;cursor:pointer}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 .blink{animation:pulse .85s infinite}
+.horse.ghost{stroke:#2b211a;stroke-width:2;filter:drop-shadow(0 .6px 1.2px #0006)}
+.horse.land{stroke:#2b211a;stroke-width:2.2}
 
 /* 윷 던지기 — 결과만 툭 나오면 «던진 것 같지가 않다». 윷가락이 굴러야 한다. */
 #throw{position:fixed;inset:0;background:#f4ecdcee;display:flex;flex-direction:column;
@@ -426,6 +428,9 @@ let cfg = {
 };
 let G = null;        // 진행 중인 판
 let history = [];    // 되돌리기용 스냅샷
+/* 말이 움직이는 동안(BUSY) 은 아무것도 못 누른다.
+   ANIM = 판 위를 콩콩 옮겨 가는 말 {ti, idxs, cell, n} · LAND = 방금 도착한 말(테두리로 표시) */
+let BUSY = false, ANIM = null, LAND = null;
 
 /* ── 설정 화면 ── */
 function drawSetup() {
@@ -485,7 +490,7 @@ el('start').onclick = () => {
     })),
     turn: 0, queue: [], throws: 1, sel: null, over: false,
   };
-  history = [];
+  history = []; BUSY = false; ANIM = null; LAND = null;
   el('setup').classList.add('hide');
   el('game').classList.remove('hide');
   el('win').classList.add('hide');
@@ -533,7 +538,7 @@ function drawBoard() {
   let s = L('o0','o5') + L('o5','o10') + L('o10','o15') + L('o15','o0') + L('o5','o15') + L('o10','o0');
 
   const step = G.queue[G.sel ?? -1]?.step;
-  const moves = (G.sel != null) ? movable(step) : [];
+  const moves = (G.sel != null && !BUSY) ? movable(step) : [];
   const destCells = new Set(moves.map(m => m.dest.done ? 'OUT' : cellOf(m.dest)));
 
   Object.values(CELL).forEach(c => {
@@ -545,7 +550,7 @@ function drawBoard() {
 
   // 대기 말 — 판 «바깥» 에 팀별로 줄 세운다. 몇 개 남았는지 한눈에 보여야 한다.
   G.teams.forEach((t, ti) => {
-    const wait = t.pieces.filter(p => p.waiting).length;
+    const wait = t.pieces.filter((p, pi) => p.waiting && !(ANIM && ANIM.ti === ti && ANIM.idxs.includes(pi))).length;
     const y = ti === 0 ? -3.5 : 104;
     for (let i = 0; i < wait; i++) {
       const sel = (G.sel != null) && ti === G.turn && moves.some(m => m.pos.waiting);
@@ -564,11 +569,13 @@ function drawBoard() {
   G.teams.forEach((t, ti) => {
     groupsOf(ti).forEach(g => {
       if (g.pos.waiting) return;
+      if (ANIM && ANIM.ti === ti && g.idxs.some(i => ANIM.idxs.includes(i))) return;
       const c = CELL[cellOf(g.pos)];
       const off = ti === 0 ? -2.6 : 2.6;
       const mi = (ti === G.turn) ? moves.findIndex(m => m.key === g.key) : -1;
       const sel = mi >= 0;
-      s += `<circle class="horse ${sel?'sel blink':''}" cx="${c.x+off}" cy="${c.y-2.6}" r="5.2" fill="${t.color}"/>`;
+      const land = LAND && LAND.ti === ti && g.idxs.some(i => LAND.idxs.includes(i));
+      s += `<circle class="horse ${sel?'sel blink':''} ${land?'land blink':''}" cx="${c.x+off}" cy="${c.y-2.6}" r="5.2" fill="${t.color}"/>`;
       if (g.idxs.length > 1) s += `<text class="hnum" x="${c.x+off}" y="${c.y-2.6}">${g.idxs.length}</text>`;
       // 오른쪽 버튼과 같은 번호를 말 옆에 붙여 «어느 버튼이 어느 말인지» 알 수 있게 한다
       if (sel) {
@@ -577,6 +584,13 @@ function drawBoard() {
       }
     });
   });
+
+  // 옮겨 가는 중인 말
+  if (ANIM) {
+    const c = CELL[ANIM.cell], off = ANIM.ti === 0 ? -2.6 : 2.6;
+    s += `<circle class="horse ghost" cx="${c.x+off}" cy="${c.y-4.2}" r="6" fill="${G.teams[ANIM.ti].color}"/>`;
+    if (ANIM.n > 1) s += `<text class="hnum" x="${c.x+off}" y="${c.y-4.2}">${ANIM.n}</text>`;
+  }
 
   // 누를 수 있는 넓은 영역 (작은 말은 손가락으로 못 맞춘다)
   moves.forEach(m => {
@@ -607,20 +621,21 @@ function render() {
     `<button class="chip ${y.key==='BACK'?'back':''} ${i===G.sel?'on':''}" data-q="${i}">${y.name}</button>`).join('')
     || `<span style="font-size:2.2vmin;color:#9b876c;font-weight:700">아직 던진 결과가 없습니다</span>`;
   el('queue').querySelectorAll('[data-q]').forEach(b =>
-    b.onclick = () => { G.sel = +b.dataset.q; render(); });
+    b.onclick = () => { if (BUSY) return; G.sel = +b.dataset.q; render(); });
 
   // 던지기 UI — 설정에 따라 한쪽만 보인다
   el('rollWrap').classList.toggle('hide', !cfg.autoRoll);
   el('pad').classList.toggle('hide', cfg.autoRoll);
-  el('rollBtn').disabled = G.throws <= 0;
+  el('rollBtn').disabled = G.throws <= 0 || BUSY;
   const keys = (cfg.useBack ? ['BACK'] : []).concat(['DO','GAE','GEOL','YUT','MO']);
   el('pad').innerHTML = keys.map(k =>
-    `<button data-y="${k}" class="${k==='BACK'?'back':''}" ${G.throws<=0?'disabled':''}>${YUT[k].name}</button>`).join('');
+    `<button data-y="${k}" class="${k==='BACK'?'back':''}" ${G.throws<=0||BUSY?'disabled':''}>${YUT[k].name}</button>`).join('');
   el('pad').querySelectorAll('[data-y]').forEach(b => b.onclick = () => addResult(YUT[b.dataset.y]));
 
   // 안내 문구
   let msg = '';
-  if (G.throws > 0) msg = `<b style="color:${t.color}">${t.name}</b> 차례 — 윷을 던지세요` +
+  if (BUSY) msg = LAND ? LAND.msg : `<b style="color:${t.color}">${t.name}</b> 말이 움직이는 중…`;
+  else if (G.throws > 0) msg = `<b style="color:${t.color}">${t.name}</b> 차례 — 윷을 던지세요` +
                           (G.throws > 1 ? ` <span style="color:#e0a43c">(${G.throws}번 남음)</span>` : '');
   else if (!G.queue.length) msg = '결과를 다 썼습니다';
   else if (G.sel == null) msg = '쓸 결과를 고르세요';
@@ -635,7 +650,7 @@ function render() {
      판의 말을 손가락으로 정확히 찍기가 어렵다(특히 폰 세로 화면).
      그래서 «움직일 수 있는 말마다 버튼»을 만들고, 말 옆에 같은 번호를 붙인다.
      판을 눌러도 되고 버튼을 눌러도 된다. */
-  const mv = (G.sel != null) ? movable(G.queue[G.sel].step) : [];
+  const mv = (G.sel != null && !BUSY) ? movable(G.queue[G.sel].step) : [];
   el('moves').innerHTML = mv.map((m, i) => {
     const isNew = m.pos.waiting;
     const dest = m.dest.done ? '🎉 도착(난다)' : null;
@@ -650,8 +665,8 @@ function render() {
   el('moves').querySelectorAll('[data-mvbtn]').forEach((b) =>
     b.onclick = () => doMove(mv[+b.dataset.mvbtn]));
 
-  el('undo').disabled = !history.length;
-  el('pass').disabled = G.sel == null || movable(G.queue[G.sel].step).length > 0;
+  el('undo').disabled = !history.length || BUSY;
+  el('pass').disabled = BUSY || G.sel == null || movable(G.queue[G.sel].step).length > 0;
   drawBoard();
 }
 
@@ -661,7 +676,7 @@ function snap() {
   if (history.length > 40) history.shift();
 }
 el('undo').onclick = () => {
-  if (!history.length) return;
+  if (!history.length || BUSY) return;
   G = JSON.parse(history.pop()).G;
   el('win').classList.add('hide');
   el('turn').classList.add('hide');
@@ -723,27 +738,57 @@ function addResult(y) {
   render();
 }
 
-function doMove(m) {
-  if (!m) return;
+/* 말 옮기기 — ① 한 칸씩 콩콩 옮겨 가고 ② 도착해서 잡기·나기 결과를 보여 준 뒤
+   ③ 잠깐 쉬고 나서야 차례를 넘긴다.  (이동이 보이기도 전에 차례가 바뀌면 무슨 일이 났는지 모른다) */
+function pathOf(pos, step) {
+  if (step < 0) return [pos.idx - 1 < 0 ? 'o0' : ROUTES[pos.route][pos.idx - 1]];
+  const route = pos.waiting ? 'outer' : pos.route, from = pos.waiting ? -1 : pos.idx;
+  const cells = [];
+  for (let i = from + 1; i <= from + step; i++) {
+    const c = ROUTES[route][Math.min(i, ROUTES[route].length - 1)];
+    cells.push(c === 'OUT' ? 'o0' : c);
+    if (c === 'OUT') break;
+  }
+  return cells;
+}
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+async function doMove(m) {
+  if (!m || BUSY) return;
   snap();
-  const me = G.teams[G.turn];
+  BUSY = true;
+  const g0 = G;                       // 도중에 새 판을 시작하면 여기서 멈춘다
+  const ti = G.turn, me = G.teams[ti];
   const dest = m.dest;
+  const step = G.queue[G.sel].step;
 
+  // ① 콩콩 — 한 칸에 0.22초
+  const cells = pathOf(m.pos, step);
+  ANIM = { ti, idxs: m.idxs, cell: cells[0], n: m.idxs.length };
+  for (const c of cells) {
+    ANIM.cell = c; SFX.move(); render();
+    await wait(220);
+    if (G !== g0) return;
+  }
+  ANIM = null;
+
+  // ② 도착 — 판에 반영하고 결과를 알린다
   m.idxs.forEach(i => { me.pieces[i] = dest.done ? { done: true } : { ...dest }; });
-
-  let again = false;
+  let again = false, msg = `<b style="color:${me.color}">${me.name}</b> ${G.queue[G.sel].name} 이동 완료`;
   if (!dest.done) {
     // 잡기 — 도착 칸에 상대 말이 있으면 대기로 돌려보내고 한 번 더
-    const other = G.teams[1 - G.turn];
+    const other = G.teams[1 - ti];
     const here = cellOf(dest);
     const hit = other.pieces.filter(p => !p.done && !p.waiting && cellOf(p) === here);
     if (hit.length) {
       hit.forEach(p => { p.waiting = true; delete p.route; delete p.idx; });
       again = true;
+      msg = `<b style="color:${me.color}">${me.name}</b> 💥 ${other.name} 말 ${hit.length}개를 잡았다! 한 번 더`;
       SFX.capture();
       speak(me.name + ', ' + other.name + ' 말 ' + hit.length + '개를 잡았습니다! 한 번 더');
     }
   } else {
+    msg = `<b style="color:${me.color}">${me.name}</b> 🎉 말이 났습니다!`;
     SFX.home();
     speak('났습니다!');
   }
@@ -752,7 +797,17 @@ function doMove(m) {
   G.sel = G.queue.length ? 0 : null;
   if (again) G.throws += 1;
 
-  if (me.pieces.every(p => p.done)) { G.over = true; showWin(me); return; }
+  const won = me.pieces.every(p => p.done);
+  const turnEnds = !won && G.throws <= 0 && !G.queue.length;
+  if (turnEnds) msg += ` <span style="color:#9b876c">· 곧 ${G.teams[1 - ti].name} 차례</span>`;
+  LAND = { ti, idxs: m.idxs, msg };
+  render();
+
+  // ③ 결과를 볼 시간 — 차례가 바뀌거나 이기는 경우만 오래 쉰다
+  await wait(won ? 1400 : turnEnds ? (again || dest.done ? 2000 : 1500) : (again || dest.done ? 1000 : 300));
+  if (G !== g0) return;
+  BUSY = false; LAND = null;
+  if (won) { G.over = true; showWin(me); return; }
   endIfDone();
   render();
 }
