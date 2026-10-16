@@ -279,7 +279,16 @@ const ROUTES = {
   diagB: [O(1),O(2),O(3),O(4),O(5),O(6),O(7),O(8),O(9),O(10),'b1','b2','C','b3','b4','OUT'],
   center:[O(1),O(2),O(3),O(4),O(5),'a1','a2','C','b3','b4','OUT'],
 };
+/* 백도로 뒤로 가면 «길 이름»이 칸과 어긋날 수 있다(예: 중앙에서 백도 → a2 인데 길은 'center' 그대로 →
+   다음에 중앙을 «지나가기만» 해도 골인 쪽으로 꺾임). 칸에 맞는 길로 되돌린 뒤 모서리·중앙 규칙을 적용한다(10/16) */
+function canonRoute(route, idx) {
+  if (route !== 'outer' && idx <= 3) return 'outer';            // o1~o4 = 바깥길
+  if (route === 'diagB' && idx <= 8) return 'outer';            // o5~o9 = 바깥길(o5면 아래에서 지름길로)
+  if (route === 'center' && idx <= 6) return 'diagA';           // a1·a2·o5 = 중앙 전 → 직진 지름길
+  return route;
+}
 function switchRoute(route, idx) {
+  route = canonRoute(route, idx);
   const cell = ROUTES[route][idx];
   if (cell === O(5)  && route === 'outer') return { route: 'diagA',  idx };
   if (cell === O(10) && route === 'outer') return { route: 'diagB',  idx };
